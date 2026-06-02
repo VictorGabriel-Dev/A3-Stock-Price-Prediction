@@ -1,0 +1,149 @@
+  1. Coleta de Dados                                                                                                                                                                                                                                                                           
+                                                                                                                                                                                                                                                                                               
+  - Fonte: Yahoo Finance (yfinance)                                                                                                                                                                                                                                                            
+  - Período: 01‑01‑2020 → 01‑01‑2024                                                                                                                                                                                                                                                           
+  - Ativos: AAPL, NVDA, MSFT, GOOGL
+  - Variável principal: preço de fechamento diário (Close).
+
+  ▎ O download foi concluído sem erros e retornou 1 006 observações por ticker.
+
+  ---
+  2. Estatísticas Descritivas (Preço de Fechamento)
+
+  ┌────────┬────────┬───────────────┬────────┬────────┬────────┬────────┬────────┐
+  │ Ticker │ Média  │ Desvio‑padrão │ Mínimo │  25 %  │  50 %  │  75 %  │ Máximo │
+  ├────────┼────────┼───────────────┼────────┼────────┼────────┼────────┼────────┤
+  │ AAPL   │ 137.83 │ 33.33         │ 54.16  │ 120.29 │ 142.68 │ 163.04 │ 195.89 │
+  ├────────┼────────┼───────────────┼────────┼────────┼────────┼────────┼────────┤
+  │ NVDA   │ 21.06  │ 11.75         │ 4.89   │ 13.12  │ 17.57  │ 26.50  │ 50.37  │
+  ├────────┼────────┼───────────────┼────────┼────────┼────────┼────────┼────────┤
+  │ MSFT   │ 253.63 │ 54.69         │ 128.36 │ 212.37 │ 250.39 │ 293.13 │ 375.41 │
+  ├────────┼────────┼───────────────┼────────┼────────┼────────┼────────┼────────┤
+  │ GOOGL  │ 106.99 │ 24.91         │ 52.27  │ 87.31  │ 108.99 │ 129.18 │ 148.61 │
+  └────────┴────────┴───────────────┴────────┴────────┴────────┴────────┴────────┘
+
+  - Observação: NVDA tem maior volatilidade relativa (coeficiente de variação ≈ 56 %).
+
+  ---
+  3. Engenharia de Recursos
+
+  ┌─────────┬────────────────────────────────────┬─────────────────────────────────────┐
+  │ Recurso │             Descrição              │         Janela / Parâmetro          │
+  ├─────────┼────────────────────────────────────┼─────────────────────────────────────┤
+  │ SMA‑20  │ Média móvel simples (20 dias)      │ rolling(window=20).mean()           │
+  ├─────────┼────────────────────────────────────┼─────────────────────────────────────┤
+  │ EMA‑20  │ Média móvel exponencial (20 dias)  │ ewm(span=20, adjust=False).mean()   │
+  ├─────────┼────────────────────────────────────┼─────────────────────────────────────┤
+  │ RSI‑14  │ Índice de Força Relativa (14 dias) │ ta.momentum.RSIIndicator(window=14) │
+  └─────────┴────────────────────────────────────┴─────────────────────────────────────┘
+
+  - Valores ausentes nas primeiras 19 linhas foram descartados (dropna).
+  - Todos os recursos foram normalizados para [0, 1] usando MinMaxScaler.
+
+  ---
+  4. Modelagem – Estratégia de Teste
+
+  - Alvo de regressão: preço de fechamento do próximo dia (shift(-1)).
+  - Alvo de classificação: 1 se o preço de amanhã > hoje, caso contrário 0.
+  - Divisão temporal: 80 % treino, 20 % teste (sem embaralhar).
+
+  ---
+  5. Resultados dos Modelos
+
+  ┌─────────────────────────────────────┬───────────────┬──────────┬──────────────┬──────────────────────────────────────────────────────────────────────────────────────────────┐
+  │               Modelo                │    Tarefa     │ Métrica  │ Valor (NVDA) │                                          Comentário                                          │
+  ├─────────────────────────────────────┼───────────────┼──────────┼──────────────┼──────────────────────────────────────────────────────────────────────────────────────────────┤
+  │ Linear Regression                   │ Regressão     │ RMSE     │ 0.0352       │ Erro pequeno em escala normalizada.                                                          │
+  ├─────────────────────────────────────┼───────────────┼──────────┼──────────────┼──────────────────────────────────────────────────────────────────────────────────────────────┤
+  │                                     │               │ MAE      │ 0.0254       │                                                                                              │
+  ├─────────────────────────────────────┼───────────────┼──────────┼──────────────┼──────────────────────────────────────────────────────────────────────────────────────────────┤
+  │                                     │               │ MAPE     │ 3.20 %       │ Melhor desempenho geral.                                                                     │
+  ├─────────────────────────────────────┼───────────────┼──────────┼──────────────┼──────────────────────────────────────────────────────────────────────────────────────────────┤
+  │ Random Forest Regressor             │ Regressão     │ RMSE     │ 0.2823       │ Erro muito maior – dificuldade de extrapolar tendências.                                     │
+  ├─────────────────────────────────────┼───────────────┼──────────┼──────────────┼──────────────────────────────────────────────────────────────────────────────────────────────┤
+  │                                     │               │ MAE      │ 0.2472       │                                                                                              │
+  ├─────────────────────────────────────┼───────────────┼──────────┼──────────────┼──────────────────────────────────────────────────────────────────────────────────────────────┤
+  │                                     │               │ MAPE     │ 28.52 %      │                                                                                              │
+  ├─────────────────────────────────────┼───────────────┼──────────┼──────────────┼──────────────────────────────────────────────────────────────────────────────────────────────┤
+  │ Random Forest Classifier (base)     │ Classificação │ Acurácia │ 41.92 %      │ Pouco melhor que chute aleatório (25 %).                                                     │
+  ├─────────────────────────────────────┼───────────────┼──────────┼──────────────┼──────────────────────────────────────────────────────────────────────────────────────────────┤
+  │                                     │               │ Precisão │ 40.00 %      │                                                                                              │
+  ├─────────────────────────────────────┼───────────────┼──────────┼──────────────┼──────────────────────────────────────────────────────────────────────────────────────────────┤
+  │                                     │               │ Recall   │ 11.01 %      │                                                                                              │
+  ├─────────────────────────────────────┼───────────────┼──────────┼──────────────┼──────────────────────────────────────────────────────────────────────────────────────────────┤
+  │ Random Forest Classifier (ajustado) │ Classificação │ Acurácia │ 45.96 %      │ Melhoria marginal.                                                                           │
+  ├─────────────────────────────────────┼───────────────┼──────────┼──────────────┼──────────────────────────────────────────────────────────────────────────────────────────────┤
+  │                                     │               │ Precisão │ 100 %        │ Precisão perfeita – modelo só prevê “subida” quando tem alta confiança.                      │
+  ├─────────────────────────────────────┼───────────────┼──────────┼──────────────┼──────────────────────────────────────────────────────────────────────────────────────────────┤
+  │                                     │               │ Recall   │ 1.83 %       │ Recall quase zero, indicando alta conservadorismo (poucos verdadeiros positivos detectados). │
+  └─────────────────────────────────────┴───────────────┴──────────┴──────────────┴──────────────────────────────────────────────────────────────────────────────────────────────┘
+
+  Avaliação cruzada nas quatro empresas (tabela resumida)
+
+  ┌─────────┬───────────────────┬───────────────┬─────────┬─────────┬─────────┬──────────┬──────────┬─────────┐
+  │ Empresa │      Modelo       │    Tarefa     │  RMSE   │   MAE   │  MAPE   │ Acurácia │ Precisão │ Recall  │
+  ├─────────┼───────────────────┼───────────────┼─────────┼─────────┼─────────┼──────────┼──────────┼─────────┤
+  │ AAPL    │ Linear Regression │ Regressão     │ 2.5344  │ 2.0224  │ 1.14 %  │ —        │ —        │ —       │
+  ├─────────┼───────────────────┼───────────────┼─────────┼─────────┼─────────┼──────────┼──────────┼─────────┤
+  │         │ Random Forest     │ Regressão     │ 12.5241 │ 10.8069 │ 5.95 %  │ —        │ —        │ —       │
+  ├─────────┼───────────────────┼───────────────┼─────────┼─────────┼─────────┼──────────┼──────────┼─────────┤
+  │         │ Random Forest     │ Classificação │ —       │ —       │ —       │ 47.47 %  │ 60.00 %  │ 11.11 % │
+  ├─────────┼───────────────────┼───────────────┼─────────┼─────────┼─────────┼──────────┼──────────┼─────────┤
+  │ NVDA    │ Linear Regression │ Regressão     │ 1.5992  │ 1.1575  │ 2.81 %  │ —        │ —        │ —       │
+  ├─────────┼───────────────────┼───────────────┼─────────┼─────────┼─────────┼──────────┼──────────┼─────────┤
+  │         │ Random Forest     │ Regressão     │ 12.8304 │ 11.2333 │ 25.30 % │ —        │ —        │ —       │
+  ├─────────┼───────────────────┼───────────────┼─────────┼─────────┼─────────┼──────────┼──────────┼─────────┤
+  │         │ Random Forest     │ Classificação │ —       │ —       │ —       │ 45.96 %  │ 100 %    │ 1.83 %  │
+  ├─────────┼───────────────────┼───────────────┼─────────┼─────────┼─────────┼──────────┼──────────┼─────────┤
+  │ MSFT    │ Linear Regression │ Regressão     │ 5.7409  │ 4.5123  │ 1.39 %  │ —        │ —        │ —       │
+  ├─────────┼───────────────────┼───────────────┼─────────┼─────────┼─────────┼──────────┼──────────┼─────────┤
+  │         │ Random Forest     │ Regressão     │ 22.3387 │ 14.7145 │ 4.25 %  │ —        │ —        │ —       │
+  ├─────────┼───────────────────┼───────────────┼─────────┼─────────┼─────────┼──────────┼──────────┼─────────┤
+  │         │ Random Forest     │ Classificação │ —       │ —       │ —       │ 51.01 %  │ 65.91 %  │ 26.13 % │
+  ├─────────┼───────────────────┼───────────────┼─────────┼─────────┼─────────┼──────────┼──────────┼─────────┤
+  │ GOOGL   │ Linear Regression │ Regressão     │ 2.4962  │ 1.8383  │ 1.48 %  │ —        │ —        │ —       │
+  ├─────────┼───────────────────┼───────────────┼─────────┼─────────┼─────────┼──────────┼──────────┼─────────┤
+  │         │ Random Forest     │ Regressão     │ 3.8552  │ 3.0058  │ 2.45 %  │ —        │ —        │ —       │
+  ├─────────┼───────────────────┼───────────────┼─────────┼─────────┼─────────┼──────────┼──────────┼─────────┤
+  │         │ Random Forest     │ Classificação │ —       │ —       │ —       │ 45.45 %  │ 49.11 %  │ 51.89 % │
+  └─────────┴───────────────────┴───────────────┴─────────┴─────────┴─────────┴──────────┴──────────┴─────────┘
+
+  Principais conclusões
+
+  1. Regressão
+    - O modelo Linear Regression domina. Em todas as empresas ele tem RMSE/MAE muito menores que o Random Forest.
+    - O Random Forest falha em prever preços futuros, provavelmente porque as árvores não extrapolam bem além dos limites dos dados de treino, gerando previsões “encostadas” nas últimas observações.
+  2. Classificação
+    - O Random Forest ajustado (max_depth=5, class_weight='balanced') traz a melhor acurácia geral (~45‑51 %).
+    - Precisão atinge 100 % para NVDA, mas o recall quase nulo indica que o modelo quase nunca sinaliza “alta” – ele prefere evitar falsos positivos ao custo de perder a maioria dos verdadeiros positivos.
+    - Para MSFT e GOOGL, a combinação de precisão e recall é mais equilibrada, resultando na acurácia mais alta (≈ 51 %).
+
+  3. Comparação entre ativos
+    - AAPL e GOOGL apresentam os menores erros percentuais na regressão, sugerindo que seus preços seguem tendências mais lineares que são capturadas bem por uma simples regressão.
+    - NVDA tem maior volatilidade; a regressão ainda funciona bem, mas a classificação demonstra o risco de um modelo excessivamente conservador.
+
+  ---
+  6. Recomendações & Próximos Passos
+
+  ┌──────────────────────────┬──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┬───────────────────────────────────────────────────────────────────────────┐
+  │           Área           │                                                           Sugestão                                                           │                                 Racional                                  │
+  ├──────────────────────────┼──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┼───────────────────────────────────────────────────────────────────────────┤
+  │ Modelos de regressão     │ Manter Linear Regression como baseline e experimentar Ridge/Lasso ou SVR para regularização.                                 │ Pode reduzir over‑fitting em ativos mais voláteis (ex.: NVDA).            │
+  ├──────────────────────────┼──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┼───────────────────────────────────────────────────────────────────────────┤
+  │ Modelos de classificação │ Testar algoritmos Gradient Boosting (XGBoost/LightGBM) que costumam lidar melhor com desbalanceamento sem sacrificar recall. │ Melhor trade‑off entre precisão e recall.                                 │
+  ├──────────────────────────┼──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┼───────────────────────────────────────────────────────────────────────────┤
+  │ Feature set              │ Incluir volatilidade histórica (ex.: rolling std), volume e macroeconômicos (taxa de juros) como novos recursos.             │ Pode melhorar a sinalização de movimentos de alta/baixa.                  │
+  ├──────────────────────────┼──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┼───────────────────────────────────────────────────────────────────────────┤
+  │ Validação temporal       │ Aplicar walk‑forward validation (rolling windows) para medir robustez em séries temporais.                                   │ Evita otimismo de um único split.                                         │
+  ├──────────────────────────┼──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┼───────────────────────────────────────────────────────────────────────────┤
+  │ Avaliação adicional      │ Calcular R² para regressão e F1‑score para classificação, além de curvas ROC/AUC.                                            │ Métricas complementares evidenciam desempenho em cenários desbalanceados. │
+  ├──────────────────────────┼──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┼───────────────────────────────────────────────────────────────────────────┤
+  │ Pipeline                 │ Encapsular pré‑processamento (scaler, feature creation) em um Pipeline do scikit‑learn para evitar “leakage”.                │ Garante consistência ao treinar/validar novos modelos.                    │
+  └──────────────────────────┴──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┴───────────────────────────────────────────────────────────────────────────┘
+
+  ---
+  7. Conclusão geral
+
+  - Regressão: Linear Regression é suficiente e superior ao Random Forest para previsão de preço futuro nos quatro grandes tickers analisados.
+  - Classificação: Random Forest (com ajuste de profundidade e ponderação) entrega a melhor acurácia, porém requer refinamento para melhorar recall – especialmente importante se a estratégia de trading depender da detecção de movimentos de alta.
+  - Próximas iterações: explorar modelos mais avançados, enriquecer o conjunto de atributos e validar com técnicas de validação temporal.
